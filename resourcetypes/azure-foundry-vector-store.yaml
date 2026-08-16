@@ -1,7 +1,7 @@
 # Provisions a vector store inside an existing Azure AI Foundry project.
-# A vector store is a data-plane object (no ARM type), so the Crossplane
-# provider in ../provider reconciles it via a FoundryVectorStore CR:
-# create / heal / delete, with a finalizer for clean teardown.
+# A vector store is a data-plane object (no ARM type), so the Crossplane provider in
+# ../provider reconciles it via a FoundryVectorStore CR: create / heal / delete, with a
+# finalizer for clean teardown.
 apiVersion: openchoreo.dev/v1alpha1
 kind: ClusterResourceType
 metadata:
@@ -11,22 +11,32 @@ spec:
     openAPIV3Schema:
       type: object
       properties:
-        # Display name for the vector store in Foundry. Defaults to the Resource
-        # name. The store's real identity is a generated vs_... id; consumers
-        # resolve it at runtime by listing vector stores and matching this name.
+        # Display name for the store in Foundry. Defaults to the Resource name.
         storeName:
           type: string
           description: Name for the vector store (defaults to the Resource name).
+
+  # Per-environment infra, set by the platform engineer on the binding. The developer
+  # never supplies these.
+  environmentConfigs:
+    openAPIV3Schema:
+      type: object
+      required: [projectEndpoint]
+      properties:
+        projectEndpoint:
+          type: string
+          description: Foundry project endpoint for this environment.
+
   retainPolicy: Delete
 
-  # Consumers get the store name (to resolve the id) and the project endpoint.
   outputs:
     - name: storeName
       value: "${parameters.?storeName.orValue(metadata.resourceName)}"
+    # The real vs_... id, surfaced from the provider's status after creation.
+    - name: vectorStoreId
+      value: "${applied.vectorStore.status.atProvider.id}"
     - name: endpoint
-      configMapKeyRef:
-        name: foundry-account
-        key: projectEndpoint
+      value: "${environmentConfigs.projectEndpoint}"
 
   resources:
     - id: vectorStore

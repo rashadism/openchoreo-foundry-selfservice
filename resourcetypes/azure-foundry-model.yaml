@@ -1,7 +1,6 @@
 # Provisions a model deployment inside an existing Azure AI Foundry account.
-# A model deployment is a control-plane (ARM) resource, so Azure Service Operator
-# (ASO) reconciles it declaratively: create / heal / delete.
-# Needs ASO CognitiveServices v2.15.0+ (Account + Deployment).
+# A model deployment is a control-plane (ARM) resource, so Azure Service Operator (ASO)
+# reconciles it: create / heal / delete. Needs ASO CognitiveServices v2.15.0+.
 apiVersion: openchoreo.dev/v1alpha1
 kind: ClusterResourceType
 metadata:
@@ -25,8 +24,8 @@ spec:
             - gpt-5-nano
             - text-embedding-3-small
             - text-embedding-3-large
-        # The deployment's own name in Azure, distinct from the model, and what
-        # apps call. Defaults to the Resource name and must be unique in the account.
+        # The deployment's own name in Azure, distinct from the model, and what apps
+        # call. Defaults to the Resource name; must be unique within the account.
         deploymentName:
           type: string
           description: Name for this deployment in Azure (defaults to the Resource name).
@@ -36,7 +35,6 @@ spec:
         modelFormat:
           type: string
           default: OpenAI
-          description: Model publisher / format.
         skuName:
           type: string
           default: GlobalStandard
@@ -47,15 +45,26 @@ spec:
           default: 10
           description: Rate limit in thousands of tokens/min (1 = 1k TPM); bounded by quota.
 
+  # Per-environment infra, set by the platform engineer on the binding.
+  environmentConfigs:
+    openAPIV3Schema:
+      type: object
+      required: [accountArmId, projectEndpoint]
+      properties:
+        accountArmId:
+          type: string
+          description: ARM id of the Foundry account that owns the deployment.
+        projectEndpoint:
+          type: string
+          description: Foundry project endpoint for this environment.
+
   retainPolicy: Delete
 
   outputs:
     - name: deploymentName
       value: "${parameters.?deploymentName.orValue(metadata.resourceName)}"
     - name: endpoint
-      configMapKeyRef:
-        name: foundry-account
-        key: projectEndpoint
+      value: "${environmentConfigs.projectEndpoint}"
 
   resources:
     - id: modelDeployment
@@ -68,7 +77,7 @@ spec:
           namespace: ${metadata.namespace}
         spec:
           owner:
-            name: foundry-account          # PE-provisioned ASO Account CR that adopts the real account
+            armId: ${environmentConfigs.accountArmId}
           azureName: ${parameters.?deploymentName.orValue(metadata.resourceName)}
           properties:
             model:

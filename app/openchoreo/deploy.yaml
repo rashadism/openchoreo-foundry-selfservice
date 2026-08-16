@@ -1,0 +1,43 @@
+# The deploy side (platform engineer / GitOps): bind each Resource to an environment,
+# and provide the SP credential the app authenticates with.
+#
+# A binding is what actually renders the resource type's template and provisions in Azure.
+# Set resourceRelease to the Resource's cut release: kubectl get resource <name> -n default
+#   -o jsonpath='{.status.latestRelease.name}'
+# resourceTypeEnvironmentConfigs supplies the per-environment Azure detail the resource
+# type declares (accountArmId + projectEndpoint for the model; projectEndpoint for the store).
+---
+apiVersion: openchoreo.dev/v1alpha1
+kind: ResourceReleaseBinding
+metadata: {name: chat-model-development, namespace: default}
+spec:
+  owner: {projectName: default, resourceName: chat-model}
+  environment: development
+  resourceRelease: chat-model-REPLACE        # from Resource.status.latestRelease.name
+  resourceTypeEnvironmentConfigs:
+    accountArmId: /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.CognitiveServices/accounts/<account>
+    projectEndpoint: https://<account>.services.ai.azure.com/api/projects/<project>
+---
+apiVersion: openchoreo.dev/v1alpha1
+kind: ResourceReleaseBinding
+metadata: {name: knowledge-base-development, namespace: default}
+spec:
+  owner: {projectName: default, resourceName: knowledge-base}
+  environment: development
+  resourceRelease: knowledge-base-REPLACE    # from Resource.status.latestRelease.name
+  resourceTypeEnvironmentConfigs:
+    projectEndpoint: https://<account>.services.ai.azure.com/api/projects/<project>
+---
+# The service principal, pulled from the platform secret store (ESO/OpenBao) so the
+# literal never sits in a manifest. Write the SP into the store first, e.g.:
+#   bao kv put secret/azure-foundry-sp AZURE_CLIENT_ID=... AZURE_TENANT_ID=... AZURE_CLIENT_SECRET=...
+apiVersion: openchoreo.dev/v1alpha1
+kind: SecretReference
+metadata: {name: azure-foundry-sp, namespace: default}
+spec:
+  refreshInterval: 1h
+  template: {type: Opaque}
+  data:
+    - {secretKey: AZURE_CLIENT_ID,     remoteRef: {key: azure-foundry-sp, property: AZURE_CLIENT_ID}}
+    - {secretKey: AZURE_TENANT_ID,     remoteRef: {key: azure-foundry-sp, property: AZURE_TENANT_ID}}
+    - {secretKey: AZURE_CLIENT_SECRET, remoteRef: {key: azure-foundry-sp, property: AZURE_CLIENT_SECRET}}

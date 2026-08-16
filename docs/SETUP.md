@@ -1,33 +1,31 @@
 # Setup
 
-Reproducible steps to stand up the demo on an OpenChoreo cluster with an existing
-Azure AI Foundry account. Commands below use the demo's values; substitute your own.
+Reproducible steps, validated on `k3d-openchoreo` against a personal Foundry account.
+Substitute your own subscription / account / project values.
 
 ## Prerequisites
 
-- An OpenChoreo cluster (this was tested on `k3d-openchoreo`) with cert-manager present.
-- An Azure AI Foundry account + project, and a chat model (`gpt-5-mini`) and an embedding
-  model (`text-embedding-3-small`) deployed.
+- An OpenChoreo cluster with cert-manager and a secret store (ESO + a `ClusterSecretStore`).
+- A Foundry account + project, and a chat model (e.g. `gpt-5-mini`) you can deploy.
+  You do **not** need an embedding model: `file_search` embeds automatically.
 - `az` logged in with rights to create a service principal and role assignments.
 
 ## 1. Service principal
 
-The provider and the app authenticate to Foundry as a service principal. It needs:
-- **Foundry Project Manager** (data-plane: create agents / vector stores),
+The provider and the app authenticate to Foundry as one service principal. It needs:
+- **Foundry Project Manager** (data-plane: create vector stores / agents, run inference) at the account **and** project scope, and
 - **Cognitive Services Contributor** (so ASO can provision model deployments).
 
 ```bash
 ACC=/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.CognitiveServices/accounts/<account>
-az ad sp create-for-rbac --name openchoreo-foundry-demo
-SP=<appId from the output>
-
-az role assignment create --assignee $SP --role "Foundry Project Manager" --scope $ACC
-az role assignment create --assignee $SP --role "Foundry Project Manager" --scope $ACC/projects/<project>
+az ad sp create-for-rbac --name openchoreo-foundry-demo    # capture appId + password + tenant
+SP=<appId>
+az role assignment create --assignee $SP --role "Foundry Project Manager"      --scope $ACC
+az role assignment create --assignee $SP --role "Foundry Project Manager"      --scope $ACC/projects/<project>
 az role assignment create --assignee $SP --role "Cognitive Services Contributor" --scope $ACC
 ```
 
-> Data-plane role assignments can take several minutes to propagate before the first
-> create succeeds.
+> Data-plane role assignments take a few minutes to propagate before the first create succeeds.
 
 ## 2. Azure Service Operator (for the model)
 
@@ -40,51 +38,50 @@ helm upgrade --install aso2 aso2/azure-service-operator --version 2.20.0 \
   --set azureClientID=$SP --set azureClientSecret=<secret>
 ```
 
-## 3. The Crossplane provider (for the vector store / agent)
+## 3. The Crossplane provider (for the vector store)
 
 ```bash
 kubectl apply -f provider/config/crd/
-kubectl apply -f provider/config/provider.yaml       # namespace, RBAC, Deployment
+kubectl apply -f provider/config/provider.yaml          # namespace, RBAC, Deployment
+kubectl apply -f provider/config/dataplane-rbac.yaml    # lets the OpenChoreo cluster-agent apply the CRs
+kubectl apply -f platform/foundry-account.yaml          # provider's project-endpoint ConfigMap
 
-# The SP credential the provider (and app) use:
 kubectl -n provider-foundry create secret generic azure-foundry-sp \
-  --from-literal=AZURE_CLIENT_ID=$SP \
-  --from-literal=AZURE_TENANT_ID=<tenant> \
+  --from-literal=AZURE_CLIENT_ID=$SP --from-literal=AZURE_TENANT_ID=<tenant> \
   --from-literal=AZURE_CLIENT_SECRET=<secret>
 ```
 
-Build/push the provider image and set it on the Deployment (`provider/Dockerfile`). On a
-local k3d cluster, `k3d image import <image> -c <cluster>` and set
-`imagePullPolicy: IfNotPresent`.
+Build/push the provider image (`provider/Dockerfile`) and set it on the Deployment. On k3d:
+`k3d image import <image> -c <cluster>` and use `imagePullPolicy: IfNotPresent`.
 
-## 4. Point the cluster at your Foundry account
+> The `dataplane-rbac.yaml` step is essential: without it the cluster-agent cannot apply
+> the `FoundryVectorStore` / ASO `Deployment` CRs the resource types render, and bindings
+> fail with `ResourceApplyFailed ... forbidden`.
 
-Edit `platform/foundry-account.yaml` with your endpoint and account ARM ID, then:
-
-```bash
-kubectl apply -f platform/foundry-account.yaml
-```
-
-## 5. Install the resource types (platform engineer)
+## 4. Install the resource types
 
 ```bash
 kubectl apply -f resourcetypes/
 ```
 
-## 6. The app (developer)
+## 5. Provision a model + a vector store (developer + deploy)
 
-Build and push `app/` (`<registry>/rag-chat`), set the image in
-`app/openchoreo/resources.yaml`, wire the SP secret into the workload env, then:
+Create the Resources, then bind each to an environment. The binding supplies the
+per-environment Azure detail (`accountArmId`, `projectEndpoint`) and is what actually
+provisions.
 
 ```bash
-kubectl apply -f app/openchoreo/resources.yaml
+kubectl apply -f app/openchoreo/resources.yaml    # the two Resources + the component/workload
+# fill resourceRelease from `kubectl get resource <name> -n default -o jsonpath='{.status.latestRelease.name}'`
+kubectl apply -f app/openchoreo/deploy.yaml        # bindings + the SP SecretReference
 ```
 
-Open the component's external endpoint and chat. The model answers grounded on the
-documents in the vector store.
+Put the SP into the secret store first (so the SecretReference resolves), e.g.:
+`bao kv put secret/azure-foundry-sp AZURE_CLIENT_ID=$SP AZURE_TENANT_ID=<tenant> AZURE_CLIENT_SECRET=<secret>`.
 
-## Wiring the service principal
+## 6. The app
 
-The app reads `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_CLIENT_SECRET` via
-`DefaultAzureCredential`. Source them from your platform's secret store through a
-`SecretReference`, or (demo shortcut) reference the `azure-foundry-sp` secret directly.
+Build/import `app/` (`oc-rag-chat`), set the image in `app/openchoreo/resources.yaml`. The
+component auto-deploys; its Workload binds the model + vector store outputs
+(`MODEL_DEPLOYMENT`, `VECTOR_STORE_ID`, `FOUNDRY_PROJECT_ENDPOINT`) and the SP secret. Open
+the component's external endpoint and chat — the model answers grounded on the vector store.
