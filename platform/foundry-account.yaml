@@ -1,0 +1,45 @@
+# One-time platform-engineer setup that points the cluster at your Foundry account.
+# Values below are for the demo account; change them for your environment.
+#
+# 1) The foundry-account ConfigMap carries the project endpoint (read by the resource
+#    type outputs and by the Crossplane provider) and the account ARM ID (owner for
+#    the ASO model deployment). Create it in BOTH the cell namespace (default) and the
+#    provider's namespace (provider-foundry).
+# 2) The ASO Account CR adopts the existing Foundry account so the model deployment's
+#    `owner: { name: foundry-account }` resolves. reconcile-policy: skip means ASO
+#    references it without modifying your account.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: foundry-account
+  namespace: default
+data:
+  projectEndpoint: https://rashad20-9496-resource.services.ai.azure.com/api/projects/rashad20-9496
+  accountArmId: /subscriptions/7acf24e3-c424-4485-9542-163d383056f8/resourceGroups/rg-rashad.20-1477/providers/Microsoft.CognitiveServices/accounts/rashad20-9496-resource
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: foundry-account
+  namespace: provider-foundry
+data:
+  projectEndpoint: https://rashad20-9496-resource.services.ai.azure.com/api/projects/rashad20-9496
+  accountArmId: /subscriptions/7acf24e3-c424-4485-9542-163d383056f8/resourceGroups/rg-rashad.20-1477/providers/Microsoft.CognitiveServices/accounts/rashad20-9496-resource
+---
+# ASO adopts (references) the existing Foundry account. skip = do not reconcile/modify it.
+apiVersion: cognitiveservices.azure.com/v1api20250601
+kind: Account
+metadata:
+  name: foundry-account
+  namespace: default
+  annotations:
+    serviceoperator.azure.com/reconcile-policy: skip
+spec:
+  azureName: rashad20-9496-resource
+  owner:
+    armId: /subscriptions/7acf24e3-c424-4485-9542-163d383056f8/resourceGroups/rg-rashad.20-1477
+  kind: AIServices
+  location: eastus2
+  sku:
+    name: S0

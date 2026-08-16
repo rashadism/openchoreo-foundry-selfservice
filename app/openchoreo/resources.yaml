@@ -1,0 +1,77 @@
+# The developer side: two resources (a model and a vector store) and the component
+# that consumes them. The developer names a model and a store; the platform provisions
+# both and injects their connection details as environment variables.
+---
+apiVersion: openchoreo.dev/v1alpha1
+kind: Resource
+metadata:
+  name: chat-model
+  namespace: default
+spec:
+  owner:
+    projectName: default
+  type:
+    kind: ClusterResourceType
+    name: azure-foundry-model
+  parameters:
+    modelName: gpt-5-mini
+    modelVersion: "2025-08-07"
+---
+apiVersion: openchoreo.dev/v1alpha1
+kind: Resource
+metadata:
+  name: knowledge-base
+  namespace: default
+spec:
+  owner:
+    projectName: default
+  type:
+    kind: ClusterResourceType
+    name: azure-foundry-vector-store
+  parameters:
+    storeName: demo-knowledge-base
+---
+apiVersion: openchoreo.dev/v1alpha1
+kind: Component
+metadata:
+  name: rag-chat
+  namespace: default
+spec:
+  owner:
+    projectName: default
+  componentType:
+    kind: ClusterComponentType
+    name: deployment/web-application
+  autoDeploy: true
+---
+apiVersion: openchoreo.dev/v1alpha1
+kind: Workload
+metadata:
+  name: rag-chat
+  namespace: default
+spec:
+  owner:
+    projectName: default
+    componentName: rag-chat
+  container:
+    image: <registry>/rag-chat:latest   # replace at build/publish time
+    env:
+      - key: PORT
+        value: "8080"
+      # The service principal (AZURE_CLIENT_ID / AZURE_TENANT_ID / AZURE_CLIENT_SECRET)
+      # comes from the platform secret store via a SecretReference. The exact schema is
+      # platform-specific; see docs/SETUP.md "Wiring the service principal".
+  endpoints:
+    http:
+      port: 8080
+      type: HTTP
+      visibility: [external]
+  dependencies:
+    resources:
+      - ref: chat-model
+        envBindings:
+          deploymentName: MODEL_DEPLOYMENT
+          endpoint: FOUNDRY_PROJECT_ENDPOINT
+      - ref: knowledge-base
+        envBindings:
+          storeName: VECTOR_STORE_NAME

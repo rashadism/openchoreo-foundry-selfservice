@@ -1,0 +1,81 @@
+# Provisions a model deployment inside an existing Azure AI Foundry account.
+# A model deployment is a control-plane (ARM) resource, so Azure Service Operator
+# (ASO) reconciles it declaratively: create / heal / delete.
+# Needs ASO CognitiveServices v2.15.0+ (Account + Deployment).
+apiVersion: openchoreo.dev/v1alpha1
+kind: ClusterResourceType
+metadata:
+  name: azure-foundry-model
+spec:
+  parameters:
+    openAPIV3Schema:
+      type: object
+      required: [modelName]
+      properties:
+        modelName:
+          type: string
+          description: Foundry model to deploy (the platform-curated allow-list).
+          enum:
+            - gpt-4o
+            - gpt-4o-mini
+            - gpt-4.1
+            - gpt-4.1-mini
+            - gpt-5
+            - gpt-5-mini
+            - gpt-5-nano
+            - text-embedding-3-small
+            - text-embedding-3-large
+        # The deployment's own name in Azure, distinct from the model, and what
+        # apps call. Defaults to the Resource name and must be unique in the account.
+        deploymentName:
+          type: string
+          description: Name for this deployment in Azure (defaults to the Resource name).
+        modelVersion:
+          type: string
+          description: Model version; omit to use the model's default.
+        modelFormat:
+          type: string
+          default: OpenAI
+          description: Model publisher / format.
+        skuName:
+          type: string
+          default: GlobalStandard
+          description: Deployment tier.
+          enum: [GlobalStandard, Standard, DataZoneStandard, ProvisionedManaged]
+        capacity:
+          type: integer
+          default: 10
+          description: Rate limit in thousands of tokens/min (1 = 1k TPM); bounded by quota.
+
+  retainPolicy: Delete
+
+  outputs:
+    - name: deploymentName
+      value: "${parameters.?deploymentName.orValue(metadata.resourceName)}"
+    - name: endpoint
+      configMapKeyRef:
+        name: foundry-account
+        key: projectEndpoint
+
+  resources:
+    - id: modelDeployment
+      readyWhen: "${has(applied.modelDeployment.status.conditions) && applied.modelDeployment.status.conditions.exists(c, c.type == 'Ready' && c.status == 'True')}"
+      template:
+        apiVersion: cognitiveservices.azure.com/v1api20250601
+        kind: Deployment
+        metadata:
+          name: ${metadata.name}-model
+          namespace: ${metadata.namespace}
+        spec:
+          owner:
+            name: foundry-account          # PE-provisioned ASO Account CR that adopts the real account
+          azureName: ${parameters.?deploymentName.orValue(metadata.resourceName)}
+          properties:
+            model:
+              format:  ${parameters.modelFormat}
+              name:    ${parameters.modelName}
+              version: |
+                ${has(parameters.modelVersion) ? parameters.modelVersion : oc_omit()}
+          sku:
+            name:     ${parameters.skuName}
+            capacity: ${parameters.capacity}
