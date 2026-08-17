@@ -81,7 +81,17 @@ Put the SP into the secret store first (so the SecretReference resolves), e.g.:
 
 ## 6. The app
 
-Build/import `app/` (`oc-rag-chat`), set the image in `app/openchoreo/resources.yaml`. The
-component auto-deploys; its Workload binds the model + vector store outputs
-(`MODEL_DEPLOYMENT`, `VECTOR_STORE_ID`, `FOUNDRY_PROJECT_ENDPOINT`) and the SP secret. Open
-the component's external endpoint and chat — the model answers grounded on the vector store.
+`app/` is a Next.js + Vercel AI SDK RAG webapp. Build and import it, then set the image in
+`app/openchoreo/resources.yaml`:
+
+```bash
+cd app
+docker build -t oc-rag-chat:web .
+k3d image import oc-rag-chat:web -c openchoreo   # use imagePullPolicy: IfNotPresent
+```
+
+The component auto-deploys; its Workload binds the model + vector store outputs
+(`MODEL_DEPLOYMENT`, `VECTOR_STORE_ID`, `FOUNDRY_PROJECT_ENDPOINT`) and the SP secret
+(`AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_CLIENT_SECRET`). Open the component's
+external endpoint: the chat streams grounded answers with the file_search tool call and
+citations, and the knowledge-base panel lets you drag-and-drop documents to ingest.

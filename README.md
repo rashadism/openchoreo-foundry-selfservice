@@ -15,7 +15,7 @@ models and vector stores in OpenChoreo"* and a working RAG demo.
 | `resourcetypes/` | The two `ClusterResourceType`s a platform engineer installs: `azure-foundry-model` (ASO) and `azure-foundry-vector-store` (Crossplane). |
 | `provider/` | A small Crossplane provider that reconciles data-plane Foundry objects. Ships two CRDs: `FoundryAgent` and `FoundryVectorStore`. |
 | `platform/` | One-time platform-engineer setup: the `foundry-account` ConfigMap, the ASO `Account` adoption CR, and the provider deployment. |
-| `app/` | A RAG chatbot: one component that depends on a model and a vector store. |
+| `app/` | A RAG chat webapp (Next.js + Vercel AI SDK): streaming chat with tool calls and citations, plus a drag-and-drop document ingest panel. One component that depends on a model and a vector store. |
 | `docs/` | `SETUP.md` (reproducible runbook), `ARCHITECTURE.md`, and `TEARDOWN.md`. |
 
 ## The two planes

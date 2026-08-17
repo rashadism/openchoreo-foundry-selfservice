@@ -50,7 +50,17 @@ them; the platform engineer sets them once.
 
 ## Retrieval (the app)
 
-The RAG app depends on a model Resource and a vector store Resource. It resolves the
-vector store id by name, seeds a couple of sample documents if empty, and answers via the
-Responses API with a `file_search` tool over the store, so retrieval stays model + vector
-store with no agent involved.
+The RAG app (`app/`) is a Next.js app built with the [Vercel AI SDK](https://ai-sdk.dev).
+It depends on a model Resource and a vector store Resource, and reads their outputs
+(`MODEL_DEPLOYMENT`, `VECTOR_STORE_ID`, `FOUNDRY_PROJECT_ENDPOINT`) as env vars.
+
+- **Chat** (`/api/chat`) streams answers via the Responses API with a `file_search` tool
+  over the store, surfacing the tool call, the retrieved chunks, and file citations in the
+  UI. Retrieval stays model + vector store, with no agent involved.
+- **Ingest** (`/api/ingest`) accepts dropped files, uploads them to Foundry, and attaches
+  them to the vector store as a batch. Foundry auto-chunks and embeds
+  (`text-embedding-3-large`), so there is no embedding model to deploy.
+
+Both paths authenticate with the same platform-provisioned service principal: a fresh
+Entra bearer token (`getBearerTokenProvider`, scope `https://ai.azure.com/.default`) is
+injected per request against Foundry's OpenAI-compatible `/openai/v1` surface.

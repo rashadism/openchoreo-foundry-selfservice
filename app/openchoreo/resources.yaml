@@ -32,7 +32,7 @@ metadata: {name: rag-chat, namespace: default}
 spec:
   owner: {projectName: default, componentName: rag-chat}
   container:
-    image: oc-rag-chat:local            # k3d-imported for local demo; use a registry image otherwise
+    image: oc-rag-chat:web              # k3d-imported for local demo; use a registry image otherwise
     env:
       - key: PORT
         value: "8080"
