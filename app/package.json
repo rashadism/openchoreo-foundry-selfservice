@@ -15,6 +15,7 @@
     "@ai-sdk/react": "4.0.69",
     "@azure/identity": "4.13.1",
     "ai": "7.0.66",
+    "geist": "^1.7.2",
     "next": "16.3.1",
     "openai": "7.4.0",
     "react": "19.2.8",

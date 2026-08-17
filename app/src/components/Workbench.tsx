@@ -96,10 +96,7 @@ export default function Workbench({
       <header className="topbar">
         <div className="brand">
           <span className="dot" />
-          <div>
-            <h1>Foundry RAG</h1>
-            <p className="sub">Grounded chat on an OpenChoreo-provisioned Foundry stack</p>
-          </div>
+          <h1>RAG demo with Azure Foundry in OpenChoreo</h1>
         </div>
         <div className="badges">
           <span className="badge model">
@@ -107,7 +104,7 @@ export default function Workbench({
             <span className="k">model</span>&nbsp;<code>{model}</code>
           </span>
           <span className="badge">
-            <span className="pip" />
+            <span className="pip live" />
             <span className="k">vector store</span>&nbsp;
             <code>{store?.name ?? vectorStoreId}</code>
             <span className="k">· {docCount} docs</span>
@@ -127,7 +124,16 @@ export default function Workbench({
 
           <div
             className={`dropzone${dragOver ? ' drag' : ''}`}
+            role="button"
+            tabIndex={0}
+            aria-label="Ingest documents: drop files here, or activate to browse"
             onClick={() => fileInput.current?.click()}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                fileInput.current?.click();
+              }
+            }}
             onDragOver={(e) => {
               e.preventDefault();
               setDragOver(true);
@@ -170,7 +176,12 @@ export default function Workbench({
                 <span className="fi">{(f.filename.split('.').pop() ?? '?').slice(0, 4)}</span>
                 <span className="name">{f.filename}</span>
                 {f.bytes > 0 && <span className="fsize">{formatBytes(f.bytes)}</span>}
-                <span className={`st ${f.status}`} title={f.status} />
+                <span
+                  className={`st ${f.status}`}
+                  role="img"
+                  aria-label={`status: ${f.status}`}
+                  title={f.status}
+                />
               </div>
             ))}
           </div>
@@ -189,11 +200,18 @@ export default function Workbench({
           <div className="messages">
             {messages.length === 0 && (
               <div className="empty-chat">
+                <div className="glyph" aria-hidden>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2z" />
+                    <circle cx="10.5" cy="10" r="2.4" />
+                    <path d="m13.6 13.1-1.4-1.4" />
+                  </svg>
+                </div>
                 <h3>Ask about your documents</h3>
-                <div>
+                <p>
                   Every answer runs a file_search over the vector store and cites the chunks it
                   used.
-                </div>
+                </p>
                 <div className="suggestions">
                   {SUGGESTIONS.map((s) => (
                     <button key={s} onClick={() => !busy && sendMessage({ text: s })}>
@@ -204,15 +222,22 @@ export default function Workbench({
               </div>
             )}
 
-            {messages.map((m) => (
-              <MessageView key={m.id} role={m.role} parts={m.parts as unknown[]} />
+            {messages.map((m, i) => (
+              <MessageView
+                key={m.id}
+                role={m.role}
+                parts={m.parts as unknown[]}
+                streaming={
+                  status === 'streaming' && m.role === 'assistant' && i === messages.length - 1
+                }
+              />
             ))}
 
             {status === 'submitted' && (
-              <div className="msg assistant">
+              <div className="msg assistant" role="status" aria-label="Assistant is responding">
                 <div className="avatar">AI</div>
                 <div className="body">
-                  <div className="typing">
+                  <div className="typing" aria-hidden>
                     <i />
                     <i />
                     <i />
@@ -253,7 +278,15 @@ export default function Workbench({
   );
 }
 
-function MessageView({ role, parts }: { role: string; parts: unknown[] }) {
+function MessageView({
+  role,
+  parts,
+  streaming = false,
+}: {
+  role: string;
+  parts: unknown[];
+  streaming?: boolean;
+}) {
   const isUser = role === 'user';
   const sources: SourcePart[] = [];
 
@@ -282,6 +315,7 @@ function MessageView({ role, parts }: { role: string; parts: unknown[] }) {
       <div className="body">
         <div className="who">{isUser ? 'You' : 'Assistant'}</div>
         {rendered}
+        {streaming && <span className="caret" aria-hidden />}
         {sources.length > 0 && <Sources items={sources} />}
       </div>
     </div>
@@ -294,7 +328,7 @@ function ToolCall({ part }: { part: AnyPart }) {
   if (part.state === 'output-error') {
     return (
       <div className="tool err">
-        <div style={{ padding: '9px 12px' }}>Search failed: {part.errorText ?? 'unknown error'}</div>
+        <div>Search failed: {part.errorText ?? 'unknown error'}</div>
       </div>
     );
   }
@@ -302,7 +336,7 @@ function ToolCall({ part }: { part: AnyPart }) {
   if (searching) {
     return (
       <div className="tool">
-        <div style={{ padding: '9px 12px', display: 'flex', gap: 9, alignItems: 'center' }}>
+        <div>
           <span className="spin" />
           <span className="tlabel">Searching the knowledge base…</span>
         </div>
