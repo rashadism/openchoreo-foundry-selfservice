@@ -1,0 +1,25 @@
+# Streaming RAG answers over large documents can exceed kgateway's default 15s request
+# timeout, which resets the connection mid-stream. The chat UI surfaces that as a
+# "network error" even though most of the answer already arrived.
+#
+# OpenChoreo (as of this version) does not expose a per-endpoint gateway timeout, so we
+# raise it with a kgateway TrafficPolicy attached to the component's rendered HTTPRoute.
+# NOTE: TrafficPolicy `timeouts` only apply when the target is an HTTPRoute (they are
+# ignored for a Gateway target).
+#
+# The namespace and HTTPRoute name are rendered per environment. Find them with:
+#   kubectl get httproute -A | grep rag-chat
+# namespace: dp-<org>-<project>-<env>-<hash> ; route: rag-chat-http-<hash>
+apiVersion: gateway.kgateway.dev/v1alpha1
+kind: TrafficPolicy
+metadata:
+  name: rag-chat-stream-timeout
+  namespace: dp-default-default-development-f8e58905   # data-plane env namespace (rendered)
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: rag-chat-http-5f9c1b86                     # rendered HTTPRoute for the http endpoint
+  timeouts:
+    request: "300s"    # max total time for a streamed response
+    streamIdle: "0s"   # disable idle-stream timeout (covers reasoning gaps between tokens)

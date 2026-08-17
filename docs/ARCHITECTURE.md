@@ -64,3 +64,13 @@ It depends on a model Resource and a vector store Resource, and reads their outp
 Both paths authenticate with the same platform-provisioned service principal: a fresh
 Entra bearer token (`getBearerTokenProvider`, scope `https://ai.azure.com/.default`) is
 injected per request against Foundry's OpenAI-compatible `/openai/v1` surface.
+
+### Streaming and the gateway timeout
+
+Grounded answers over large documents can stream for tens of seconds. kgateway's default
+request timeout is 15s, so a long stream gets its connection reset mid-flight — the answer
+mostly renders, then the UI shows a "network error". OpenChoreo does not expose a
+per-endpoint gateway timeout, so we attach a kgateway `TrafficPolicy`
+(`app/openchoreo/route-timeout.yaml`) to the component's rendered HTTPRoute, raising the
+request timeout to 300s and disabling the idle-stream timeout. It is a standalone resource,
+so it survives OpenChoreo re-renders.
