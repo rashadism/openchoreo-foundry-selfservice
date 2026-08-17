@@ -113,7 +113,7 @@ export default function Workbench({
       <header className="topbar">
         <div className="brand">
           <span className="dot" />
-          <h1>RAG demo with Azure Foundry in OpenChoreo</h1>
+          <h1>Azure Foundry x OpenChoreo</h1>
         </div>
         <div className="badges">
           <span className="badge model">

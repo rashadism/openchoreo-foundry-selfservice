@@ -5,8 +5,8 @@ import { GeistMono } from 'geist/font/mono';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'RAG demo with Azure Foundry in OpenChoreo',
-  description: 'RAG demo with Azure Foundry in OpenChoreo.',
+  title: 'Azure Foundry x OpenChoreo',
+  description: 'Azure Foundry x OpenChoreo — a RAG demo.',
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
