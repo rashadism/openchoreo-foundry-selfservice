@@ -23,12 +23,6 @@ function truncate(s: string, max: number): string {
   return s.length > max ? `${s.slice(0, max).trimEnd()}…` : s;
 }
 
-const SUGGESTIONS = [
-  'What provisions the vector store, and what provisions the model?',
-  'How does file_search embed documents?',
-  'What does OpenChoreo inject into the app as environment variables?',
-];
-
 export default function Workbench({
   model,
   vectorStoreId,
@@ -191,10 +185,6 @@ export default function Workbench({
         <section className="panel chat">
           <div className="panel-head">
             <h2>Chat</h2>
-            <div className="meta">
-              Answered by <code>{model}</code>, grounded on {docCount} document
-              {docCount === 1 ? '' : 's'} via file_search
-            </div>
           </div>
 
           <div className="messages">
@@ -212,13 +202,6 @@ export default function Workbench({
                   Every answer runs a file_search over the vector store and cites the chunks it
                   used.
                 </p>
-                <div className="suggestions">
-                  {SUGGESTIONS.map((s) => (
-                    <button key={s} onClick={() => !busy && sendMessage({ text: s })}>
-                      {s}
-                    </button>
-                  ))}
-                </div>
               </div>
             )}
 

@@ -675,45 +675,6 @@ textarea {
   line-height: 1.55;
 }
 
-.suggestions {
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-  margin-top: 20px;
-}
-
-.suggestions button {
-  text-align: left;
-  padding: 11px 15px;
-  border-radius: var(--r);
-  border: 1px solid var(--line);
-  background: var(--surface);
-  color: var(--text);
-  cursor: pointer;
-  font-size: 13.5px;
-  box-shadow: var(--shadow-sm);
-  transition: border-color 0.16s var(--ease), transform 0.16s var(--ease), box-shadow 0.16s var(--ease);
-  display: flex;
-  align-items: center;
-  gap: 9px;
-}
-
-.suggestions button::before {
-  content: '';
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--accent-bright);
-  flex: none;
-  opacity: 0.7;
-}
-
-.suggestions button:hover {
-  border-color: var(--accent-line);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow);
-}
-
 .typing {
   display: inline-flex;
   gap: 5px;
