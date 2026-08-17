@@ -38,6 +38,8 @@ export default function Workbench({
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [ingestMsg, setIngestMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
+  const [resetting, setResetting] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
 
   const busy = status === 'submitted' || status === 'streaming';
@@ -78,6 +80,27 @@ export default function Workbench({
     }
   }
 
+  async function doReset() {
+    setConfirmReset(false);
+    setResetting(true);
+    setIngestMsg(null);
+    try {
+      const r = await fetch('/api/reset', { method: 'POST' });
+      const j = await r.json();
+      if (!r.ok || j.error) {
+        setIngestMsg({ kind: 'err', text: j.error ?? `Reset failed (${r.status})` });
+      } else {
+        const n = j.removed ?? 0;
+        setIngestMsg({ kind: 'ok', text: `Removed ${n} document${n === 1 ? '' : 's'}` });
+        await refreshConfig();
+      }
+    } catch (e) {
+      setIngestMsg({ kind: 'err', text: String((e as Error)?.message ?? e) });
+    } finally {
+      setResetting(false);
+    }
+  }
+
   function submit() {
     const text = input.trim();
     if (!text || busy) return;
@@ -109,12 +132,40 @@ export default function Workbench({
       <div className="layout">
         {/* ---- Knowledge base ---- */}
         <section className="panel kb">
-          <div className="panel-head">
-            <h2>Knowledge base</h2>
-            <div className="meta">
-              {store ? `${store.counts.total} indexed · status ${store.status}` : 'unavailable'}
+          <div className="panel-head kb-head">
+            <div>
+              <h2>Knowledge base</h2>
+              <div className="meta">
+                {store ? `${store.counts.total} indexed · status ${store.status}` : 'unavailable'}
+              </div>
             </div>
+            {docCount > 0 && !confirmReset && (
+              <button
+                className="reset-btn"
+                onClick={() => setConfirmReset(true)}
+                disabled={resetting || uploading}
+              >
+                {resetting ? 'Resetting…' : 'Reset'}
+              </button>
+            )}
           </div>
+
+          {confirmReset && (
+            <div className="confirm-strip" role="alertdialog" aria-label="Confirm knowledge base reset">
+              <span>
+                Remove all {docCount} document{docCount === 1 ? '' : 's'} from the knowledge base?
+                This cannot be undone.
+              </span>
+              <div className="cs-actions">
+                <button className="cs-cancel" onClick={() => setConfirmReset(false)}>
+                  Cancel
+                </button>
+                <button className="cs-danger" onClick={doReset}>
+                  Delete all
+                </button>
+              </div>
+            </div>
+          )}
 
           <div
             className={`dropzone${dragOver ? ' drag' : ''}`}
