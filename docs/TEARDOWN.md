@@ -43,7 +43,7 @@ az ad app delete --id $SP
 
 # Any leftover vector stores created during the demo (should be none after deleting the CRs)
 # List and delete via the data-plane API if needed:
-#   GET/DELETE https://rashad20-9496-resource.services.ai.azure.com/api/projects/rashad20-9496/openai/v1/vector_stores[/<id>]?api-version=v1
+#   GET/DELETE https://rashad20-9496-resource.services.ai.azure.com/api/projects/rashad20-9496/openai/v1/vector_stores[/<id>]
 ```
 
 ## Created for the demo (inventory)

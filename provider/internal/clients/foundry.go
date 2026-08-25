@@ -153,7 +153,7 @@ func (c *Client) Delete(ctx context.Context, name string) error {
 // returns its generated id (vs_...).
 func (c *Client) CreateVectorStore(ctx context.Context, name string) (string, error) {
 	payload, _ := json.Marshal(map[string]any{"name": name})
-	url := fmt.Sprintf("%s/openai/v1/vector_stores?api-version=v1", c.endpoint)
+	url := fmt.Sprintf("%s/openai/v1/vector_stores", c.endpoint)
 	code, body, err := c.do(ctx, http.MethodPost, url, payload)
 	if err != nil {
 		return "", err
@@ -172,7 +172,7 @@ func (c *Client) CreateVectorStore(ctx context.Context, name string) (string, er
 
 // GetVectorStore reports whether the vector store id exists and its display name.
 func (c *Client) GetVectorStore(ctx context.Context, id string) (bool, string, error) {
-	url := fmt.Sprintf("%s/openai/v1/vector_stores/%s?api-version=v1", c.endpoint, id)
+	url := fmt.Sprintf("%s/openai/v1/vector_stores/%s", c.endpoint, id)
 	code, body, err := c.do(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return false, "", err
@@ -192,7 +192,7 @@ func (c *Client) GetVectorStore(ctx context.Context, id string) (bool, string, e
 
 // DeleteVectorStore removes the vector store by id.
 func (c *Client) DeleteVectorStore(ctx context.Context, id string) error {
-	url := fmt.Sprintf("%s/openai/v1/vector_stores/%s?api-version=v1", c.endpoint, id)
+	url := fmt.Sprintf("%s/openai/v1/vector_stores/%s", c.endpoint, id)
 	code, body, err := c.do(ctx, http.MethodDelete, url, nil)
 	if err != nil {
 		return err

@@ -72,8 +72,8 @@ func TestVectorStoreRequestsUseOpenAIV1Path(t *testing.T) {
 				if r.URL.Path != tt.expectedPath {
 					t.Errorf("path = %s, want %s", r.URL.Path, tt.expectedPath)
 				}
-				if got := r.URL.Query().Get("api-version"); got != "v1" {
-					t.Errorf("api-version = %q, want v1", got)
+				if got := r.URL.RawQuery; got != "" {
+					t.Errorf("query = %q, want none", got)
 				}
 				return &http.Response{
 					StatusCode: http.StatusOK,
