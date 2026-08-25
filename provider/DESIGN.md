@@ -1,15 +1,14 @@
 # provider-foundry (design)
 
-A small Crossplane provider that makes a Foundry agent a real, managed object —
-so it gets created, kept in sync, and deleted like any other resource, instead of
-the one-shot Job.
+A small Crossplane provider that makes Foundry agents and vector stores managed objects,
+so they are created, kept in sync, and deleted through a reconciliation loop rather than
+a one-shot Job.
 
 ## Why
 
-Azure has no resource type for an agent; the only way to manage one is its project
-REST API. Crossplane's job is exactly this: watch a custom object and call an
-external API to make reality match it. That's a better fit than a Job, which only
-ever runs once.
+Azure has no ARM resource type for these data-plane objects; they are managed through the
+project REST APIs. The provider watches custom resources and calls those APIs to make the
+external state match the desired state.
 
 ## The object
 
@@ -42,11 +41,17 @@ The provider implements four methods. Each is one call to the project:
 Observe drives everything: if the agent is gone it triggers Create, if it drifted
 it triggers Update. Crossplane handles the delete-on-teardown finalizer for you.
 
+`FoundryVectorStore` follows the same lifecycle, using
+`/openai/v1/vector_stores`. Foundry generates its `vs_...` identity, which the provider
+stores in the `crossplane.io/external-name` annotation for later observation and deletion.
+
 ## Auth
 
-The provider pod uses workload identity to get an Entra token for
-`https://ai.azure.com/` — the same keyless approach the agent itself uses. No
-secret to store.
+The provider uses `DefaultAzureCredential` to get an Entra token for
+`https://ai.azure.com/`. Out of cluster this can use the developer's Azure CLI login. The
+checked-in in-cluster manifest supplies service-principal values from the
+`azure-foundry-sp` Kubernetes Secret. It does not use a Foundry API key, but the current
+in-cluster setup still has a client secret that must be stored and rotated.
 
 ## Status
 
@@ -62,12 +67,11 @@ a live Foundry project. Files:
 ## Run it
 
 ```bash
-cd crossplane
+cd provider
 kubectl apply -f config/crd/                 # install the CRD
 go run ./cmd/provider                        # run out-of-cluster (uses your az login)
-kubectl apply -f ../examples/foundryagent.yaml
 ```
 
 Out-of-cluster, the provider authenticates with `DefaultAzureCredential` (your
-`az login`). Packaged as a provider image in-cluster, it uses workload identity —
-same code, no secret either way.
+`az login`). In-cluster authentication is configured by the Deployment manifest and is
+currently service-principal-secret based.

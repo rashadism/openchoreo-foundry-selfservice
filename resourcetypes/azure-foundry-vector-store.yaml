@@ -48,4 +48,5 @@ spec:
           name: ${metadata.name}          # FoundryVectorStore is cluster-scoped
         spec:
           forProvider:
+            projectEndpoint: ${environmentConfigs.projectEndpoint}
             storeName: ${parameters.?storeName.orValue(metadata.resourceName)}

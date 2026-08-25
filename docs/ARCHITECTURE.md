@@ -22,7 +22,7 @@ Developer Resource
 ClusterResourceType renders a CR onto the data plane
    │
    ├─ model         → ASO Deployment CR        → ARM PUT         (control plane)
-   └─ vector store  → FoundryVectorStore CR     → POST /vector_stores (data plane)
+   └─ vector store  → FoundryVectorStore CR     → POST /openai/v1/vector_stores (data plane)
    │
    ▼
 outputs (deployment name / store name / endpoint) → injected into the workload as env
@@ -38,15 +38,19 @@ It ships two CRDs in group `foundry.openchoreo.dev`:
   generated `vs_...` id, the reconciler records that id in the `crossplane.io/external-name`
   annotation on Create, and uses it for Observe and Delete.
 
-Auth is keyless: `DefaultAzureCredential` reads a service principal from the
-`azure-foundry-sp` secret and requests a token for `https://ai.azure.com`. The project
-endpoint comes from the `foundry-account` ConfigMap, so no Azure detail is baked into a CR.
+The provider does not use a Foundry API key. `DefaultAzureCredential` reads a service
+principal client secret from the `azure-foundry-sp` Kubernetes Secret and exchanges it
+for an Entra token scoped to `https://ai.azure.com`. The ResourceReleaseBinding's
+per-environment `projectEndpoint` is rendered into each `FoundryVectorStore` CR. A
+provider-local `foundry-account` ConfigMap remains as a compatibility fallback when the
+field is absent.
 
 ## Governance
 
-The `azure-foundry-model` type is the guardrail: `modelName` is an enum (the allow-list),
-`capacity` is the per-minute token limit, `skuName` is the tier. A developer picks within
-them; the platform engineer sets them once.
+The `azure-foundry-model` type supplies the guardrails: `modelName` is an enum (the
+allow-list), `skuName` selects the tier, and `capacity` is passed to the Azure model
+deployment. Azure quota still determines whether the requested capacity can be allocated.
+A developer chooses within the schema the platform engineer publishes.
 
 ## Retrieval (the app)
 

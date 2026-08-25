@@ -40,19 +40,26 @@ helm upgrade --install aso2 aso2/azure-service-operator --version 2.20.0 \
 
 ## 3. The Crossplane provider (for the vector store)
 
+The checked-in Deployment uses `provider-foundry:dev` with
+`imagePullPolicy: IfNotPresent`. Build it before applying the Deployment. For k3d:
+
 ```bash
+docker build -t provider-foundry:dev ./provider
+k3d image import provider-foundry:dev -c openchoreo
+
 kubectl apply -f provider/config/crd/
 kubectl apply -f provider/config/provider.yaml          # namespace, RBAC, Deployment
 kubectl apply -f provider/config/dataplane-rbac.yaml    # lets the OpenChoreo cluster-agent apply the CRs
-kubectl apply -f platform/foundry-account.yaml          # provider's project-endpoint ConfigMap
 
 kubectl -n provider-foundry create secret generic azure-foundry-sp \
   --from-literal=AZURE_CLIENT_ID=$SP --from-literal=AZURE_TENANT_ID=<tenant> \
   --from-literal=AZURE_CLIENT_SECRET=<secret>
 ```
 
-Build/push the provider image (`provider/Dockerfile`) and set it on the Deployment. On k3d:
-`k3d image import <image> -c <cluster>` and use `imagePullPolicy: IfNotPresent`.
+For a non-k3d cluster, push the provider image to a registry and replace the image in
+`provider/config/provider.yaml`. The vector-store ResourceType renders the environment's
+`projectEndpoint` into each `FoundryVectorStore` CR. `platform/foundry-account.yaml` is
+only a compatibility fallback for CRs created without that field.
 
 > The `dataplane-rbac.yaml` step is essential: without it the cluster-agent cannot apply
 > the `FoundryVectorStore` / ASO `Deployment` CRs the resource types render, and bindings
@@ -73,8 +80,13 @@ provisions.
 ```bash
 kubectl apply -f app/openchoreo/resources.yaml    # the two Resources + the component/workload
 # fill resourceRelease from `kubectl get resource <name> -n default -o jsonpath='{.status.latestRelease.name}'`
-kubectl apply -f app/openchoreo/deploy.yaml        # bindings + the SP SecretReference
+# also replace <sub>, <rg>, <account>, and <project>
+kubectl apply -f app/openchoreo/deploy.yaml         # bindings + the SP SecretReference
 ```
+
+Apply these files individually. Do not run `kubectl apply -f app/openchoreo/` because
+`deploy.yaml` is a template and `route-timeout.yaml` targets names rendered for one
+specific deployment.
 
 Put the SP into the secret store first (so the SecretReference resolves), e.g.:
 `bao kv put secret/azure-foundry-sp AZURE_CLIENT_ID=$SP AZURE_TENANT_ID=<tenant> AZURE_CLIENT_SECRET=<secret>`.

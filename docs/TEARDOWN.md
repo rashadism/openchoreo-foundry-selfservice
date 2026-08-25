@@ -2,7 +2,8 @@
 
 Everything created for this demo, and how to remove it. Nothing here touches your
 pre-existing Foundry account, project, or the `gpt-5-mini` / `text-embedding-3-small`
-model deployments you already had.
+model deployments you already had. The demo uses the distinct model deployment name
+`oc-rag-gpt-5-mini`.
 
 ## On the cluster (`k3d-openchoreo`)
 
@@ -42,7 +43,7 @@ az ad app delete --id $SP
 
 # Any leftover vector stores created during the demo (should be none after deleting the CRs)
 # List and delete via the data-plane API if needed:
-#   GET/DELETE https://rashad20-9496-resource.services.ai.azure.com/api/projects/rashad20-9496/vector_stores[/<id>]?api-version=v1
+#   GET/DELETE https://rashad20-9496-resource.services.ai.azure.com/api/projects/rashad20-9496/openai/v1/vector_stores[/<id>]?api-version=v1
 ```
 
 ## Created for the demo (inventory)
@@ -51,7 +52,7 @@ az ad app delete --id $SP
 - **ASO** (`aso2` helm release) with the `cognitiveservices.azure.com` CRDs.
 - **provider-foundry** namespace: the provider Deployment, ServiceAccount, ClusterRole/Binding, the `azure-foundry-sp` Secret, and the `foundry-account` ConfigMap.
 - CRDs `foundryagents` and `foundryvectorstores`.
-- Any vector stores / model deployments provisioned through the resource types (removed by deleting the Resources / CRs).
+- Any vector stores and the `oc-rag-gpt-5-mini` model deployment provisioned through the resource types (removed by deleting the Resources / CRs).
 
 Not created, and left alone: the Foundry account `rashad20-9496-resource`, the project
 `rashad20-9496`, and the `gpt-5-mini` / `text-embedding-3-small` deployments.

@@ -14,7 +14,7 @@ models and vector stores in OpenChoreo"* and a working RAG demo.
 |------|------|
 | `resourcetypes/` | The two `ClusterResourceType`s a platform engineer installs: `azure-foundry-model` (ASO) and `azure-foundry-vector-store` (Crossplane). |
 | `provider/` | A small Crossplane provider that reconciles data-plane Foundry objects. Ships two CRDs: `FoundryAgent` and `FoundryVectorStore`. |
-| `platform/` | One-time platform-engineer setup: the `foundry-account` ConfigMap, the ASO `Account` adoption CR, and the provider deployment. |
+| `platform/` | Optional compatibility configuration: the provider's fallback `foundry-account` ConfigMap. |
 | `app/` | A RAG chat webapp (Next.js + Vercel AI SDK): streaming chat with tool calls and citations, plus a drag-and-drop document ingest panel. One component that depends on a model and a vector store. |
 | `docs/` | `SETUP.md` (reproducible runbook), `ARCHITECTURE.md`, and `TEARDOWN.md`. |
 
@@ -30,14 +30,24 @@ lifecycle. See `docs/ARCHITECTURE.md`.
 ## Quick start
 
 ```bash
-# Platform engineer, once:
-kubectl apply -f resourcetypes/
-kubectl apply -f platform/          # foundry-account ConfigMap + ASO Account + provider
+# Build the local provider image first (k3d example).
+docker build -t provider-foundry:dev ./provider
+k3d image import provider-foundry:dev -c openchoreo
 
-# Developer:
-kubectl apply -f app/openchoreo/    # a model Resource + a vector store Resource + the component
+# Platform engineer, once (after creating the provider credential Secret):
+kubectl apply -f provider/config/crd/
+kubectl apply -f provider/config/provider.yaml
+kubectl apply -f provider/config/dataplane-rbac.yaml
+kubectl apply -f resourcetypes/
+
+# Developer, then platform/GitOps binding:
+kubectl apply -f app/openchoreo/resources.yaml
+# Replace the release and Azure placeholders before applying this file.
+kubectl apply -f app/openchoreo/deploy.yaml
 ```
 
-Full, reproducible steps (including ASO install and the service principal) are in
+Do not apply the whole `app/openchoreo/` directory: `deploy.yaml` contains placeholders,
+and `route-timeout.yaml` is an optional cluster-specific policy. Full steps (including
+ASO installation and the service principal) are in
 [`docs/SETUP.md`](docs/SETUP.md). To remove everything, follow
 [`docs/TEARDOWN.md`](docs/TEARDOWN.md).

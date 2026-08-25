@@ -8,7 +8,7 @@ metadata: {name: chat-model, namespace: default}
 spec:
   owner: {projectName: default}
   type: {kind: ClusterResourceType, name: azure-foundry-model}
-  parameters: {modelName: gpt-5-mini, deploymentName: gpt-5-mini, modelVersion: "2025-08-07", capacity: 10}
+  parameters: {modelName: gpt-5-mini, deploymentName: oc-rag-gpt-5-mini, modelVersion: "2025-08-07", capacity: 10}
 ---
 apiVersion: openchoreo.dev/v1alpha1
 kind: Resource
